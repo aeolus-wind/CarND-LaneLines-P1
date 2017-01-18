@@ -1,74 +1,21 @@
 #**Finding Lane Lines on the Road** 
+
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-<img src="laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
+### A Quick Write-up of my Work
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
+I completed this project as part of Udacity's Self-Driving Car NanoDegree. In it, we learn the basics of computer vision and get an excellent introduction to OpenCV. Most surprising to me was how elegant the math is in Computer Vision. Notably, I love the ideas behind the Hough Line Detection Algorithm. The algorithm is among the practical and elegant applications of clear mathematical thinking that I have encountered. The heart of the algorithm gets at the question of representation in mathematics/engineering and explores it in the most precise way. The question, "What is the most useful representation of a mathematical object?" is one of the most important in STEM fields. The Hough Line Detection Algoorithm answers the question, "what is the most useful representation of a line?" It uses a deep understanding of this topic, facts of which are accessible to a high school student, to derive a simple, elegant, and efficient way to discover the most likely lines in an image. 
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you can install the starter kit or follow the install instructions below to get started on this project. ##
+Throughout this project, I considered this question of representation, and wondered how I might apply it to form an elegant solution to the problem. In the project, I explore 3 different ways of representing the data to find four lines which represent two lanes. The ideas and their applications are as follows:
 
-**Step 1:** Getting setup with Python
+#### Precondition to everything that follows:
+ - After using the Hough Line Detection Algorithm, you have a set of lines and you now need to split it into four groups. It is easy to do a first split into two groups based on the fact that lines in the left lane have negative slope and those in the right lane have positive slope. Once you have these two groups, the ideas below apply.
 
-To do this project, you will need Python 3 along with the numpy, matplotlib, and OpenCV libraries, as well as Jupyter Notebook installed. 
+ 1. If the image is clean, each of the two groups will contain two lines. If you do a linear regression on the points that compose those lines, the result will be the average. This means that this average line can now be used as a separating plane: you split the points based on the sign of their residuals and apply linear regression to these points.
+ 1. You can consider each line in a group as a candidate line. You want to figure out from these candidates the 'best possible line.' In this regards, each line segment has 3 useful properties, the length, the slope, and the projection onto the bottom of the picture. The last property is less obvious. The idea is that due to geometry, the lines will spread out as they reach the bottom. Thus the point where the lines hit the bottom will distinguish candidate lines the most from each other. Once you have this representation for candidate lines, you can play around with any number of ideas from clustering. The idea method will discover all 'natural' clusters, remove clusters that are outliers, and check for a final condition where we have four clusters and they are spaced appropriately on the bottom of the picture with proper slopes. Then you take a average weighted by the length of the lines for the final answer. This algorithm is both natural considering the goals of the problem and robust.
+ 1. The final representation considers each line segment as a starting point that points in a direction. You take a line segment and move along the direction is pointing (extending from around its end point) and see if you 'collide' with another starting point. You repeat this process until there are no more collisions. Everything that you find is now grouped together. You continue this process until you have used up all discovered line segments. Then you search through your groups and find the four appropriate groups.
 
-We recommend downloading and installing the Anaconda Python 3 distribution from Continuum Analytics because it comes prepackaged with many of the Python dependencies you will need for this and future projects, makes it easy to install OpenCV, and includes Jupyter Notebook.  Beyond that, it is one of the most common Python distributions used in data analytics and machine learning, so a great choice if you're getting started in the field.
+ Of course, the 'mathematical elegance' of an idea often does not manifest when you have to engineer it into the real world. I found that messy data and at times clunky coding interfered with how smooth my results were. Moreover, you always face time constraints. In the end, I had to settle with the first idea because it is the easiest to implement, and the results are pretty good. Despite these positives, idea #1 does not naturally deal with outliers, and I ended up augenting it with simple strategies to remove outliers and smooth the results. At this point, you might be wondering why the second method didn't work?
 
-Choose the appropriate Python 3 Anaconda install package for your operating system <A HREF="https://www.continuum.io/downloads" target="_blank">here</A>.   Download and install the package.
-
-If you already have Anaconda for Python 2 installed, you can create a separate environment for Python 3 and all the appropriate dependencies with the following command:
-
-`>  conda create --name=yourNewEnvironment python=3 anaconda`
-
-`>  source activate yourNewEnvironment`
-
-**Step 2:** Installing OpenCV
-
-Once you have Anaconda installed, first double check you are in your Python 3 environment:
-
-`>python`    
-`Python 3.5.2 |Anaconda 4.1.1 (x86_64)| (default, Jul  2 2016, 17:52:12)`  
-`[GCC 4.2.1 Compatible Apple LLVM 4.2 (clang-425.0.28)] on darwin`  
-`Type "help", "copyright", "credits" or "license" for more information.`  
-`>>>`   
-(Ctrl-d to exit Python)
-
-run the following commands at the terminal prompt to get OpenCV:
-
-`> pip install pillow`  
-`> conda install -c menpo opencv3=3.1.0`
-
-then to test if OpenCV is installed correctly:
-
-`> python`  
-`>>> import cv2`  
-`>>>`  (i.e. did not get an ImportError)
-
-(Ctrl-d to exit Python)
-
-**Step 3:** Installing moviepy  
-
-We recommend the "moviepy" package for processing video in this project (though you're welcome to use other packages if you prefer).  
-
-To install moviepy run:
-
-`>pip install moviepy`  
-
-and check that the install worked:
-
-`>python`  
-`>>>import moviepy`  
-`>>>`  (i.e. did not get an ImportError)
-
-(Ctrl-d to exit Python)
-
-**Step 4:** Opening the code in a Jupyter Notebook
-
-You will complete this project in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
-
-Jupyter is an ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, run the following command at the terminal prompt (be sure you're in your Python 3 environment!):
-
-`> jupyter notebook`
-
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+There were two reasons the second strategy didn't work. The first reason is that the clustering methods that I used to remove outliers weren't natural as I would have wanted. I favored simplicity when I was prototyping. The second reason gets at a major assumption that I made when exploring how best to apply the Hough Line Detection Algorithm. I focused too much on finding those lines which actually appeared in the image. Because of this, I made the parameters too strict. This is an issue because there are always dashed lines in the video and in some video frames, there aren't enough dashes for a robust result. I should have relaxed this restriction and let the Hough Lines algorithm find lines that extended between dashes. This would give me longer, more robust lines that would aid any of the 3 methods I discuss. 
